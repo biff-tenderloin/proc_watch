@@ -1,5 +1,5 @@
 use proc_maps::{get_process_maps, Pid};
-use std::process;
+use std::{process, thread};
 use std::process::{Command, Stdio};
 use std::collections::HashSet;
 use std::path::PathBuf;
@@ -22,8 +22,8 @@ enum CommandLine {
         debug: bool,
 
         /// Number of seconds for polling
-        #[structopt(short = "s", long)]
-        seconds: Option<u32>,
+        #[structopt(short = "m", long)]
+        milliseconds: Option<u64>,
     },
 
     #[structopt(help="Start watched process given by command")]
@@ -35,8 +35,8 @@ enum CommandLine {
         debug: bool,
 
         /// Number of seconds for polling
-        #[structopt(short = "s", long)]
-        seconds: Option<u32>,
+        #[structopt(short = "m", long)]
+        milliseconds: Option<u64>,
 
         #[structopt(parse(from_str))]
         external_args: Vec<String>,
@@ -57,27 +57,27 @@ fn main() {
 
     let args: CommandLine = CommandLine::from_args();
     match args {
-        CommandLine::Pid {pid, debug, seconds } => {
+        CommandLine::Pid {pid, debug, milliseconds } => {
             if debug {
                 println!("Watching pid {}", pid);
                 println!("debug: {}", debug);
-                println!("seconds: {:?}", seconds);
+                println!("milliseconds: {:?}", milliseconds);
             }
             if pid < 1 {
                 println!("Invalid pid");
                 process::exit(1);
             }
-            print_report(watch(pid, seconds.unwrap_or(1)));
+            print_report(watch(pid, milliseconds.unwrap_or(0)));
         },
         CommandLine::Start {
-            command, debug, seconds, external_args } => {
+            command, debug, milliseconds, external_args } => {
             if debug {
                 println!("command: {}", command);
                 println!("debug: {}", debug);
-                println!("seconds: {:?}", seconds);
+                println!("milliseconds: {:?}", milliseconds);
                 println!("external_args: {:?}", external_args);
             }
-            start_and_watch(command, external_args, seconds.unwrap_or(1));
+            start_and_watch(command, external_args, milliseconds.unwrap_or(0));
         },
         CommandLine::Me { debug} => {
             if debug {
@@ -119,9 +119,12 @@ fn print_msg(msg: String) {
              color::Fg(color::Reset), style::Reset);
 }
 
-fn watch(pid: Pid, poll_in_seconds: u32) -> HashSet<PathBuf> {
+fn watch(pid: Pid, poll_in_milliseconds: u64) -> HashSet<PathBuf> {
     let mut libs = HashSet::new();
 
+    if poll_in_milliseconds > 0 {
+        thread::sleep(std::time::Duration::from_millis(poll_in_milliseconds as u64));
+    }
     // TODO: execute the following in a loop to exit when the process exits or terminated by user
     // TODO: use a thread to execute the following in a loop
     //       while the main thread waits for user input to terminate the process
@@ -143,14 +146,14 @@ fn watch(pid: Pid, poll_in_seconds: u32) -> HashSet<PathBuf> {
     libs
 }
 
-fn start_and_watch(command: String, external_args: Vec<String>, poll_in_seconds: u32) {
+fn start_and_watch(command: String, external_args: Vec<String>, poll_in_milliseconds: u64) {
     let mut child = Command::new(command)
         .args(external_args)
         .stdout(Stdio::inherit())
         .spawn()
         .expect("failed to execute process");
 
-    let report = watch(child.id() as Pid, poll_in_seconds);
+    let report = watch(child.id() as Pid, poll_in_milliseconds);
 
     let this_prog = prog().unwrap();
 
