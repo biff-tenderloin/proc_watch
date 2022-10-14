@@ -1,11 +1,14 @@
 use proc_maps::{get_process_maps, Pid};
 use std::process;
-use std::process::Command;
+use std::process::{Command, Stdio};
 use std::collections::HashSet;
-//use std::env;
 use std::path::PathBuf;
 use structopt::StructOpt;
-use std::io::{stdin, stdout, Write};
+use termion::{color, style};
+
+use std::env;
+use std::path::Path;
+use std::ffi::OsStr;
 
 #[derive(StructOpt, Debug)]
 #[structopt(name = "process")]
@@ -102,13 +105,33 @@ fn main() {
     }
 }
 
+
+fn prog() -> Option<String> {
+    env::current_exe().ok()
+        .as_ref()
+        .map(Path::new)
+        .and_then(Path::file_name)
+        .and_then(OsStr::to_str)
+        .map(String::from)
+}
+
 fn print_report(contents: HashSet<PathBuf>) {
-    println!("=====================");
-    println!("Report:");
-    println!("---------------------");
+    println!("{}{}===================================================", color::Fg(color::Green), style::Bold);
+    println!("{} report:", prog().unwrap());
+    println!("{}{}---------------------------------------------------", color::Fg(color::Green), style::Bold);
+    print!("{}", style::Reset);
     for content in contents {
-        println!("  {}", content.display());
+        println!("{}{}", color::Fg(color::LightWhite), content.display());
     }
+    println!("{}{}---------------------------------------------------", color::Fg(color::Green), style::Bold);
+    print!("{}{}", color::Fg(color::Reset), style::Reset);
+}
+
+fn print_msg(msg: String) {
+    println!("{}{}{}{}{}",
+             color::Fg(color::Blue), style::Italic,
+             msg,
+             color::Fg(color::Reset), style::Reset);
 }
 
 fn watch(pid: Pid) -> HashSet<PathBuf> {
@@ -123,7 +146,6 @@ fn watch(pid: Pid) -> HashSet<PathBuf> {
             let p = map.filename().unwrap();
             if p.is_file() && p.extension().is_some() {
                 if p.extension().unwrap() == "so" {
-                    //println!("{}", p.display());
                     let path_buf = p.to_path_buf();
                     if !libs.contains(&path_buf) {
                         libs.insert(path_buf);
@@ -137,24 +159,19 @@ fn watch(pid: Pid) -> HashSet<PathBuf> {
 }
 
 fn start_and_watch(command: String) {
-    let mut cmd = Command::new(command);
-
-    let mut child = cmd.spawn()
+    let mut child = Command::new(command)
+        .stdout(Stdio::inherit())
+        .spawn()
         .expect("failed to execute process");
 
     let report = watch(child.id() as Pid);
 
-    let output = cmd.output();
+    let this_prog = prog().unwrap();
 
     // Wait for the process to exit.
     match child.wait() {
-        Ok(status) => println!("Finished, status of {}", status),
-        Err(e)     => println!("Failed, error: {}", e)
-    }
-
-    if let Ok(output) = output {
-        println!("stdout: {}", String::from_utf8_lossy(&output.stdout));
-        println!("stderr: {}", String::from_utf8_lossy(&output.stderr));
+        Ok(status) => print_msg(format!("[{}] Finished, status of {}", this_prog, status)),
+        Err(e)     => println!("[{}] Failed, error: {}", this_prog, e)
     }
 
     print_report(report);
