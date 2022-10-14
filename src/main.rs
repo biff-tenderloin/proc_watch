@@ -45,6 +45,9 @@ enum CommandLine {
         /// Number of seconds for polling
         #[structopt(short = "s", long)]
         seconds: Option<u32>,
+
+        #[structopt(parse(from_str))]
+        external_args: Vec<String>,
     },
 
     #[structopt(help="Watch self")]
@@ -70,7 +73,8 @@ fn main() {
 
     let args: CommandLine = CommandLine::from_args();
     match args {
-        CommandLine::Pid { pid, debug, output, seconds } => {
+        CommandLine::Pid {
+            pid, debug, output, seconds } => {
             if debug {
                 println!("Watching pid {}", pid);
                 println!("debug: {}", debug);
@@ -83,14 +87,16 @@ fn main() {
             }
             print_report(watch(pid));
         },
-        CommandLine::Start { command, debug, output, seconds } => {
+        CommandLine::Start {
+            command, debug, output, seconds,
+            external_args } => {
             if debug {
                 println!("command: {}", command);
                 println!("debug: {}", debug);
                 println!("output: {:?}", output);
                 println!("seconds: {:?}", seconds);
             }
-            start_and_watch(command);
+            start_and_watch(command, external_args);
         },
         CommandLine::Me { debug, output, seconds } => {
             if debug {
@@ -158,8 +164,9 @@ fn watch(pid: Pid) -> HashSet<PathBuf> {
     libs
 }
 
-fn start_and_watch(command: String) {
+fn start_and_watch(command: String, external_args: Vec<String>) {
     let mut child = Command::new(command)
+        .args(external_args)
         .stdout(Stdio::inherit())
         .spawn()
         .expect("failed to execute process");
@@ -170,8 +177,10 @@ fn start_and_watch(command: String) {
 
     // Wait for the process to exit.
     match child.wait() {
-        Ok(status) => print_msg(format!("[{}] Finished, status of {}", this_prog, status)),
-        Err(e)     => println!("[{}] Failed, error: {}", this_prog, e)
+        Ok(status) =>
+            print_msg(format!("[{}] Finished, status of {}", this_prog, status)),
+        Err(e)     =>
+            println!("[{}] Failed, error: {}", this_prog, e)
     }
 
     print_report(report);
