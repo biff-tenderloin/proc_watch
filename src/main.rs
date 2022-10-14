@@ -78,7 +78,7 @@ fn main() {
                 println!("Invalid pid");
                 process::exit(1);
             }
-            watch(pid);
+            print_report(watch(pid));
         },
         CommandLine::Start { command, debug, output, seconds } => {
             if debug {
@@ -97,12 +97,21 @@ fn main() {
             }
             let pid = process::id();
             println!("Watching current process: {}", pid);
-            watch(pid as Pid);
+            print_report(watch(pid as Pid));
         },
     }
 }
 
-fn watch(pid: Pid) {
+fn print_report(contents: HashSet<PathBuf>) {
+    println!("=====================");
+    println!("Report:");
+    println!("---------------------");
+    for content in contents {
+        println!("  {}", content.display());
+    }
+}
+
+fn watch(pid: Pid) -> HashSet<PathBuf> {
     let mut libs = HashSet::new();
 
     // TODO: execute the following in a loop to exit when the process exits or terminated by user
@@ -124,10 +133,7 @@ fn watch(pid: Pid) {
         }
     }
 
-    //println!("{} libraries", libs.len());
-    for p in libs {
-        println!("{}", p.display());
-    }
+    libs
 }
 
 fn start_and_watch(command: String) {
@@ -135,7 +141,8 @@ fn start_and_watch(command: String) {
 
     let mut child = cmd.spawn()
         .expect("failed to execute process");
-    watch(child.id() as Pid);
+
+    let report = watch(child.id() as Pid);
 
     let output = cmd.output();
 
@@ -150,4 +157,5 @@ fn start_and_watch(command: String) {
         println!("stderr: {}", String::from_utf8_lossy(&output.stderr));
     }
 
+    print_report(report);
 }
