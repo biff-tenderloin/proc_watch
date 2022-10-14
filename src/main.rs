@@ -67,7 +67,7 @@ fn main() {
                 println!("Invalid pid");
                 process::exit(1);
             }
-            print_report(watch(pid));
+            print_report(watch(pid, seconds.unwrap_or(1)));
         },
         CommandLine::Start {
             command, debug, seconds, external_args } => {
@@ -77,7 +77,7 @@ fn main() {
                 println!("seconds: {:?}", seconds);
                 println!("external_args: {:?}", external_args);
             }
-            start_and_watch(command, external_args);
+            start_and_watch(command, external_args, seconds.unwrap_or(1));
         },
         CommandLine::Me { debug} => {
             if debug {
@@ -85,7 +85,7 @@ fn main() {
             }
             let pid = process::id();
             println!("Watching current process: {}", pid);
-            print_report(watch(pid as Pid));
+            print_report(watch(pid as Pid, 0));
         },
     }
 }
@@ -119,7 +119,7 @@ fn print_msg(msg: String) {
              color::Fg(color::Reset), style::Reset);
 }
 
-fn watch(pid: Pid) -> HashSet<PathBuf> {
+fn watch(pid: Pid, poll_in_seconds: u32) -> HashSet<PathBuf> {
     let mut libs = HashSet::new();
 
     // TODO: execute the following in a loop to exit when the process exits or terminated by user
@@ -143,14 +143,14 @@ fn watch(pid: Pid) -> HashSet<PathBuf> {
     libs
 }
 
-fn start_and_watch(command: String, external_args: Vec<String>) {
+fn start_and_watch(command: String, external_args: Vec<String>, poll_in_seconds: u32) {
     let mut child = Command::new(command)
         .args(external_args)
         .stdout(Stdio::inherit())
         .spawn()
         .expect("failed to execute process");
 
-    let report = watch(child.id() as Pid);
+    let report = watch(child.id() as Pid, poll_in_seconds);
 
     let this_prog = prog().unwrap();
 
