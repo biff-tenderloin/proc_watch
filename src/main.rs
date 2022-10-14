@@ -68,10 +68,12 @@ fn main() {
     let args: CommandLine = CommandLine::from_args();
     match args {
         CommandLine::Pid { pid, debug, output, seconds } => {
-            println!("pid: {}", pid);
-            println!("debug: {}", debug);
-            println!("output: {:?}", output);
-            println!("seconds: {:?}", seconds);
+            if debug {
+                println!("Watching pid {}", pid);
+                println!("debug: {}", debug);
+                println!("output: {:?}", output);
+                println!("seconds: {:?}", seconds);
+            }
             if pid < 1 {
                 println!("Invalid pid");
                 process::exit(1);
@@ -79,16 +81,20 @@ fn main() {
             watch(pid);
         },
         CommandLine::Start { command, debug, output, seconds } => {
-            println!("command: {}", command);
-            println!("debug: {}", debug);
-            println!("output: {:?}", output);
-            println!("seconds: {:?}", seconds);
+            if debug {
+                println!("command: {}", command);
+                println!("debug: {}", debug);
+                println!("output: {:?}", output);
+                println!("seconds: {:?}", seconds);
+            }
             start_and_watch(command);
         },
         CommandLine::Me { debug, output, seconds } => {
-            println!("debug: {}", debug);
-            println!("output: {:?}", output);
-            println!("seconds: {:?}", seconds);
+            if debug {
+                println!("debug: {}", debug);
+                println!("output: {:?}", output);
+                println!("seconds: {:?}", seconds);
+            }
             let pid = process::id();
             println!("Watching current process: {}", pid);
             watch(pid as Pid);
