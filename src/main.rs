@@ -21,10 +21,6 @@ enum CommandLine {
         #[structopt(short, long)]
         debug: bool,
 
-        /// Output file
-        #[structopt(short, long, parse(from_os_str))]
-        output: Option<PathBuf>,
-
         /// Number of seconds for polling
         #[structopt(short = "s", long)]
         seconds: Option<u32>,
@@ -38,10 +34,6 @@ enum CommandLine {
         #[structopt(short, long)]
         debug: bool,
 
-        /// Output file
-        #[structopt(short, long, parse(from_os_str))]
-        output: Option<PathBuf>,
-
         /// Number of seconds for polling
         #[structopt(short = "s", long)]
         seconds: Option<u32>,
@@ -54,14 +46,6 @@ enum CommandLine {
     Me {
         #[structopt(short, long)]
         debug: bool,
-
-        /// Output file
-        #[structopt(short, long, parse(from_os_str))]
-        output: Option<PathBuf>,
-
-        /// Number of seconds for polling
-        #[structopt(short = "s", long)]
-        seconds: Option<u32>,
     },
 }
 
@@ -73,12 +57,10 @@ fn main() {
 
     let args: CommandLine = CommandLine::from_args();
     match args {
-        CommandLine::Pid {
-            pid, debug, output, seconds } => {
+        CommandLine::Pid {pid, debug, seconds } => {
             if debug {
                 println!("Watching pid {}", pid);
                 println!("debug: {}", debug);
-                println!("output: {:?}", output);
                 println!("seconds: {:?}", seconds);
             }
             if pid < 1 {
@@ -88,21 +70,18 @@ fn main() {
             print_report(watch(pid));
         },
         CommandLine::Start {
-            command, debug, output, seconds,
-            external_args } => {
+            command, debug, seconds, external_args } => {
             if debug {
                 println!("command: {}", command);
                 println!("debug: {}", debug);
-                println!("output: {:?}", output);
                 println!("seconds: {:?}", seconds);
+                println!("external_args: {:?}", external_args);
             }
             start_and_watch(command, external_args);
         },
-        CommandLine::Me { debug, output, seconds } => {
+        CommandLine::Me { debug} => {
             if debug {
                 println!("debug: {}", debug);
-                println!("output: {:?}", output);
-                println!("seconds: {:?}", seconds);
             }
             let pid = process::id();
             println!("Watching current process: {}", pid);
